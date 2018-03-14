@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
@@ -19,7 +20,6 @@ struct editorConfig {
 	int screencols;
 	struct termios orig_termios;
 };
-
 
 struct editorConfig E;
 
@@ -68,25 +68,29 @@ char editorReadKey() { // Waits for one keypress and returns it
 }
 
 int getCursorPosition(int *rows, int *cols) {
+	char buf[32];
+	unsigned int i = 0;
+
 	if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) return -1;
 
-	printf("\r\n");
-	char c;
-	while (read(STDOUT_FILENO, &c, 1) == 1) {
-		if (iscntrl(c)) {
-			printf("%d\r\n", c);
-		} else {
-			printf("%d ('%c')\r\n", c, c);
-		}
-	}
-	editorReadKey();
-	return -1;
+
+  while (i < sizeof(buf) - 1) {
+    if (read(STDIN_FILENO, &buf[i], 1) != 1) break;
+    if (buf[i] == 'R') break;
+    i++;
+  }
+  buf[i] = '\0'; //make sure the string ends with \0
+
+	if (buf[0] != '\x1b' || buf[1] != '[') return -1;
+	if (sscanf(&buf[2], "%d;%d", rows, cols) != 2) return -1; //assigns ints to vars: rows and cols
+
+	return 0;
 }
 
 int getWindowSize(int *rows, int *cols) {
 	struct winsize ws;
 
-	if (1 || ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
 	    if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12) return -1;
 	    return getCursorPosition(rows, cols);
 	} else {
@@ -96,23 +100,52 @@ int getWindowSize(int *rows, int *cols) {
 	}
 }
 
+/*** append buffer ***/
+struct abuf {
+	char *b;
+	int len;
+};
+
+#define ABUF_INIT {NULL, 0}
+
+void abAppend(struct abuf *ab, const char *s, int len) {
+	char *new = realloc(ab->b, ab->len +len);
+
+	if (new == NULL) return;
+	memcpy(&new[ab->len], s, len);
+	ab->b = new;
+	ab->len += len;
+}
+
+void abFree(struct abuf *ab) {
+	free(ab->b);
+}
+
 /*** output ***/
 
-void editorDrawRows() {
+void editorDrawRows(struct abuf *ab) {
 	int y;
-	for (y = 0; y < E.screenrows; y++) {
-		write(STDOUT_FILENO, "~\r\n", 3); // Draws tildes on left
+	for (y = 0; y < E.screenrows; y++) { // now draws a tilde on the last line
+    abAppend(ab, "~", 1);
+    if (y < E.screenrows - 1) {
+      abAppend(ab, "\r\n", 2);
+    }
 	}
 }
 
 void editorRefreshScreen() {
-	write(STDOUT_FILENO, "\x1b[2J", 4); // Writing 4 bytes to terminal.  \x1b = ESC
-	write(STDOUT_FILENO, "\x1b[H", 3); // Moves mouse cursor back up.
+	struct abuf ab = ABUF_INIT;
 
-	editorDrawRows();
-	write(STDOUT_FILENO, "\x1b[H", 3);
+	abAppend(&ab, "\x1b[2J", 4); // Storing 4 bytes to buffer.  \x1b = ESC
+	abAppend(&ab, "\x1b[H", 3); // Moves mouse cursor back up.
+
+	editorDrawRows(&ab);
+
+	abAppend(&ab, "\x1b[H", 3);
+
+	write(STDOUT_FILENO, ab.b, ab.len); // write the buffer's contents to STDOUT
+	abFree(&ab); // free the memory used by the abuf
 }
-
 
 /*** input ***/
 
