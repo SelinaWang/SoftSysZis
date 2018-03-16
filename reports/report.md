@@ -21,6 +21,7 @@ We have a complete text editor with search functionality working, with about 800
 
 We learned some things about these libraries:
 
+```
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -33,13 +34,14 @@ We learned some things about these libraries:
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
+```
 
 Here are a few important functions that we implemented that do different things.
 
 
 Here is the function for saving a text file:
 
----
+```
 void editorSave() {
   if (E.filename == NULL) {
   	E.filename = editorPrompt("Save as: %s (ESC to cancel)", NULL);
@@ -67,12 +69,12 @@ void editorSave() {
   free(buf);
   editorSetStatusMessage("Can't save! I/O error: %s", strerror(errno));
 }
----
+```
 
 
 Here is the function for scrolling through our editor:
 
----
+```
 void editorScroll() {
 	E.rx = 0;
 	if (E.cy < E.numrows) {
@@ -92,11 +94,11 @@ void editorScroll() {
 		E.coloff = E.rx - E.screencols + 1;
 	}
 }
----
+```
 
 And here's the function for getting window size:
 
----
+```
 int getWindowSize(int *rows, int *cols) {
 	struct winsize ws;
 
@@ -109,9 +111,9 @@ int getWindowSize(int *rows, int *cols) {
 		return 0;
 	}
 }
----
+```
 
-Please view kilo.c for more. Run the file's output to try out our text editor! [Here](https://github.com/SelinaWang/SoftSysZis) is our GitHub repo.
+Please view kilo.c for more. Run the file's output to try out our text editor! [Here](https://github.com/SelinaWang/SoftSysZis) is our GitHub repo.	
 
 
 
