@@ -111,7 +111,7 @@ int getWindowSize(int *rows, int *cols) {
 }
 ---
 
-Please view kilo.c for more. Run the file's output to try out our text editor! 
+Please view kilo.c for more. Run the file's output to try out our text editor! [Here](https://github.com/SelinaWang/SoftSysZis) is our GitHub repo.
 
 
 
